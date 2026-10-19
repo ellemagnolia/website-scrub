@@ -59,9 +59,21 @@ Bath Textiles · Upholstery: Sofas + Sectionals, Uph Beds, Uph Ottomans and Benc
    ```
    python scripts/site_scrub.py --msl "<MSL>.xlsx" --ds "<DS report>.xlsx" --shopify "<work folder>\shopify_variants.tsv" --subcat "Uph Seating" --out-dir "<work folder>"
    ```
-   Output: `F&T Site Scrub <subcat> <MM.DD.YY>.xlsx` with tabs Run (settings + counts),
-   Outliers (investigate first), Scrub (SKU / Name / Variant / Active / Image Quality / Inventory
-   + details) and HTML (the site pull for that subcat).
+   Output: `F&T Site Scrub <subcat> <MM.DD.YY>.xlsx`. It shows its work:
+
+   | Tab | What's on it |
+   |---|---|
+   | **Run** (green) | Settings you can change (stage list, stock buffer, image cutoffs) + counts, all COUNTIF formulas |
+   | **Steps** (green) | What was done, in order, with the number of SKUs at each step |
+   | **Outliers** (green) | SKUs that aren't online, "investigate" first; every column looks up Scrub |
+   | **Scrub** (green) | One row per should-be-online SKU: SKU / Name / Variant / Active / Image Quality / Inventory / Reason. Every answer is an XLOOKUP / IF formula into the data tabs |
+   | **MSL** (blue) | The MSL rows for the subcat, all stages, with a Should Be Online? formula |
+   | **HTML** (blue) | The site pull for the subcat: variant, own photo?, image width/height, quality formula |
+   | **Shopify** (blue) | Product status + Jewell available/on hand for the subcat's SKUs |
+   | **DS** (blue) | DS report rows for the subcat's SKUs |
+
+   Change the stock buffer on Run and the Reasons recalculate. The Outliers list itself (which
+   SKUs, and their order) is fixed at run time.
 4. Report the counts and the "investigate" rows. Hand the file to the user. Don't send it.
 
 ## Rules

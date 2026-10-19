@@ -1,0 +1,19 @@
+# Never commit data: exports, finals, reports, decks, images, fonts, caches
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+*.docx
+*.pptx
+*.png
+*.jpg
+*.otf
+*.ttf
+*.zip
+*.pkl
+merch_list_cache/
+__pycache__/
+.venv/
+~$*
+spec.json
+resolved.json

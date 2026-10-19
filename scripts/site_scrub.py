@@ -1,11 +1,12 @@
-"""Website scrub for one or more MH Sub-Categories -> F&T Site Scrub <subcat> <date>.xlsx
+"""Website scrub for one or more MH Categories and/or Sub-Categories -> F&T Site Scrub <subcat> <date>.xlsx
 
   python site_scrub.py --msl MSL.xlsx --ds DS.xlsx --shopify shopify_variants.tsv --subcat "Uph Seating" --out-dir .
+  python site_scrub.py ... --category "Upholstery" --out-dir .          (a whole MH Category)
 
 The workbook shows its work: the data tabs (MSL, DS, Shopify, HTML) hold exactly what was used,
 and the answer tabs (Scrub, Outliers, Run) are formulas that point back at them.
 
-Should be online = MSL rows in MH Division "Furniture + Textiles", the chosen MH Sub-Category(s),
+Should be online = MSL rows in MH Division "Furniture + Textiles", the chosen MH Category(s) / Sub-Category(s),
 Stage in STAGES. Each of those SKUs is matched (by SKU) to the live site (magnolia.com/products.json).
 SKUs that aren't live get a Reason, checked in this order:
   Not in Shopify -> Draft/Archived in Shopify -> No inventory (<= 0) -> Under stock buffer (<= buffer)
@@ -127,14 +128,23 @@ def rng(tab, col, n):
     return f"'{tab}'!${col}$2:${col}${max(n, 1) + 1}"
 
 
-def build(msl_path, ds_path, shopify_path, subcats, out_dir, prods=None, sources=None):
+def build(msl_path, ds_path, shopify_path, subcats, out_dir, prods=None, sources=None, cats=()):
     sources = sources or {}
     msl_all = read_sheet(msl_path, ["SKU", "Stage", "MH Division", "MH Sub-Category"])
     in_div = [r for r in msl_all if r["MH Division"] == DIVISION and r["SKU"]]
-    in_sub = [r for r in in_div if r["MH Sub-Category"] in subcats]
+    subcats, cats = list(subcats or []), list(cats or [])
+    for picked, col in ((cats, "MH Category"), (subcats, "MH Sub-Category")):
+        known = {r[col] for r in in_div if r[col]}
+        bad = [x for x in picked if x not in known]
+        if bad:
+            raise SystemExit(f"not an F+T {col}: {bad}. Choices: {sorted(known)}")
+    in_sub = [r for r in in_div if r["MH Category"] in cats or r["MH Sub-Category"] in subcats]
     should = [r for r in in_sub if r["Stage"] in STAGES]
+    scope = " + ".join(cats + subcats)
+    scope_rule = " or ".join(([f"MH Category = {', '.join(cats)}"] if cats else []) +
+                             ([f"MH Sub-Category = {', '.join(subcats)}"] if subcats else []))
     if not should:
-        raise SystemExit(f"no {DIVISION} SKUs in {subcats} at stages {STAGES}")
+        raise SystemExit(f"no {DIVISION} SKUs in {scope} at stages {STAGES}")
     sub_skus = {str(r["SKU"]).strip() for r in in_sub}
     ds_rows = read_sheet(ds_path, ["SKU", "Quantity"]) if ds_path else []
     ds = {str(r["SKU"]).strip(): r for r in ds_rows if r["SKU"] and str(r["SKU"]).strip() in sub_skus}
@@ -154,7 +164,7 @@ def build(msl_path, ds_path, shopify_path, subcats, out_dir, prods=None, sources
     # ---- data tabs: exactly what was used -------------------------------------------------------
     ws = wb.create_sheet("MSL")
     ws.append(MSL_COLS + ["Should Be Online?"])
-    msl_sorted = sorted(in_sub, key=lambda r: (r["MH Sub-Category"], r["Display Name"] or "", str(r["SKU"])))
+    msl_sorted = sorted(in_sub, key=lambda r: (r["MH Category"] or "", r["MH Sub-Category"] or "", r["Display Name"] or "", str(r["SKU"])))
     for i, r in enumerate(msl_sorted, 2):
         ws.append([str(r.get(c)).strip() if c == "SKU" else r.get(c) for c in MSL_COLS] +
                   [f'=IF(COUNTIF(Run!$B$4:$B${3 + len(STAGES)},D{i})>0,"Yes","No")'])
@@ -203,7 +213,7 @@ def build(msl_path, ds_path, shopify_path, subcats, out_dir, prods=None, sources
     D = lambda col: rng("DS", col, n_ds)
     scrub.append(["SKU", "Name", "Variant", "Active", "Image Quality", "Inventory", "Inventory Source",
                   "Shopify Status", "Reason", "Dropship?", "Sub-Category", "Vendor", "Stage"])
-    should_sorted = sorted(should, key=lambda r: (r["MH Sub-Category"], r["Display Name"] or "", str(r["SKU"])))
+    should_sorted = sorted(should, key=lambda r: (r["MH Category"] or "", r["MH Sub-Category"] or "", r["Display Name"] or "", str(r["SKU"])))
     for i, r in enumerate(should_sorted, 2):
         x = lambda col, i=i: f'_xlfn.XLOOKUP(A{i},{M("A")},{M(col)},"")'
         scrub.append([
@@ -250,7 +260,7 @@ def build(msl_path, ds_path, shopify_path, subcats, out_dir, prods=None, sources
 
     # ---- Run: settings you can change + counts ---------------------------------------------------
     run.append(["Website Scrub", ""])
-    run.append(["Sub-Category", ", ".join(subcats)])
+    run.append(["Scope", scope_rule])
     run.append(["Run", f"{datetime.datetime.now():%m/%d/%Y %I:%M %p}"])
     for k, s in enumerate(STAGES):
         run.append(["Stages that should be online" if k == 0 else "", s])
@@ -287,7 +297,7 @@ def build(msl_path, ds_path, shopify_path, subcats, out_dir, prods=None, sources
     for row in [
         [1, f"Read the MSL export ({sources.get('msl', os.path.basename(msl_path))})", f"{len(msl_all):,} rows", ""],
         [2, f'Kept MH Division = "{DIVISION}"', f"{len(in_div):,} SKUs", ""],
-        [3, f"Kept MH Sub-Category = {', '.join(subcats)}", f"{len(in_sub):,} SKUs (all stages)", "MSL tab"],
+        [3, f"Kept {scope_rule}", f"{len(in_sub):,} SKUs (all stages)", "MSL tab"],
         [4, f"Kept Stage = {', '.join(STAGES)} (the 'should be online' list)", f"{len(should):,} SKUs",
          "MSL tab, Should Be Online? = Yes; Scrub tab"],
         [5, "Pulled every live variant from magnolia.com/products.json" + (f" ({sources['site']})" if sources.get("site") else ""),
@@ -320,7 +330,8 @@ def build(msl_path, ds_path, shopify_path, subcats, out_dir, prods=None, sources
     steps.sheet_properties.tabColor = ANSWER
 
     wb.calculation.fullCalcOnLoad = True
-    name = subcats[0] if len(subcats) == 1 else f"{len(subcats)} subcats"
+    picked = cats + subcats
+    name = " + ".join(picked) if len(picked) <= 3 else f"{len(picked)} groups"
     out = os.path.join(out_dir, f"F&T Site Scrub {name.replace('/', '-')} {datetime.date.today():%m.%d.%y}.xlsx")
     wb.save(out)
     counts = {rsn: sum(1 for r in rows if r[0] == REASONS.index(rsn)) for rsn in REASONS}
@@ -335,7 +346,8 @@ def main():
     parser.add_argument("--msl", required=True, help="workbook with the raw MSL export (any sheet with SKU/Stage/MH columns)")
     parser.add_argument("--ds", help="DS inventory report (sheet with SKU + Quantity); optional")
     parser.add_argument("--shopify", required=True, help="shopify_variants.tsv from the admin pull")
-    parser.add_argument("--subcat", action="append", required=True, help="MH Sub-Category; repeat for more than one")
+    parser.add_argument("--category", action="append", default=[], help="MH Category (e.g. Upholstery); repeat for more than one")
+    parser.add_argument("--subcat", action="append", default=[], help="MH Sub-Category (e.g. Uph Seating); repeat for more than one")
     parser.add_argument("--site-json", help="reuse a saved products.json pull instead of fetching")
     parser.add_argument("--out-dir", default=".")
     args = parser.parse_args()
@@ -343,7 +355,9 @@ def main():
     sources = {"shopify": f"pulled {datetime.datetime.fromtimestamp(os.path.getmtime(args.shopify)):%m/%d %I:%M %p}"}
     if args.site_json:
         sources["site"] = f"pulled {datetime.datetime.fromtimestamp(os.path.getmtime(args.site_json)):%m/%d %I:%M %p}"
-    build(args.msl, args.ds, args.shopify, args.subcat, args.out_dir, prods, sources)
+    if not args.category and not args.subcat:
+        parser.error("give at least one --category or --subcat")
+    build(args.msl, args.ds, args.shopify, args.subcat, args.out_dir, prods, sources, args.category)
 
 
 if __name__ == "__main__":

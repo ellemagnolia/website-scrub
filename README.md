@@ -1,7 +1,7 @@
 # Website Scrub
 
 Check that every Furniture + Textiles SKU that should be online is live on magnolia.com, for
-one MH Sub-Category at a time, and explain why the ones that aren't have fallen off.
+a whole MH Category (e.g. Upholstery) or one MH Sub-Category (e.g. Uph Seating), and explain why the ones that aren't have fallen off.
 
 - **When:** weekly (started 10/19/2026), rotating through subcats, or on request.
 - **Answers three questions:** (A) are the right items online, (B) is every color/size SKU there
@@ -10,7 +10,7 @@ one MH Sub-Category at a time, and explain why the ones that aren't have fallen 
 ## How it works
 
 1. **Should be online** = MSL rows with MH Division = Furniture + Textiles, the chosen
-   MH Sub-Category, and Stage = Continuing, New, Markdown, Residual or Re-Intro.
+   MH Category or MH Sub-Category, and Stage = Continuing, New, Markdown, Residual or Re-Intro.
 2. **Site pull** ("HTML" tab) = public `magnolia.com/products.json`, every variant with its SKU
    and the image a shopper sees for it.
 3. **Compare by SKU** (never by name). On the site = Active. Not on the site = outlier.
@@ -39,7 +39,7 @@ one MH Sub-Category at a time, and explain why the ones that aren't have fallen 
 | Shopify | Admin pull, step 2 below. |
 | Site | Pulled by the script. |
 
-F+T subcats (10/19): Bedding: Shams, Sheets, Top of Bed · Case Goods: Beds, Seating, Storage, Tables ·
+F+T categories: subcats (10/19): Bedding: Shams, Sheets, Top of Bed · Case Goods: Beds, Seating, Storage, Tables ·
 Lighting: Ceiling, Table + Floor, Wall Lighting · Outdoor: Outdoor Seating, Outdoor Storage,
 Outdoor Tables · Pillows + Throws: Pillows, Throws · Rugs: Area Rugs · Soft Bath: Bath Mats,
 Bath Textiles · Upholstery: Sofas + Sectionals, Uph Beds, Uph Ottomans and Benches, Uph Seating.
@@ -55,11 +55,13 @@ Bath Textiles · Upholstery: Sofas + Sectionals, Uph Beds, Uph Ottomans and Benc
      in the dark top bar (about x=200, y=26).
    - `Get-Clipboard -Raw | Out-File -Encoding utf8 "<work folder>\shopify_variants.tsv"`, then
      clear the clipboard and close the tab.
-3. **Run the scrub** (repeat `--subcat` for more than one):
+3. **Run the scrub** by sub-category (`--subcat`) or category (`--category`); repeat either for more than one, or mix them:
    ```
    python scripts/site_scrub.py --msl "<MSL>.xlsx" --ds "<DS report>.xlsx" --shopify "<work folder>\shopify_variants.tsv" --subcat "Uph Seating" --out-dir "<work folder>"
+   python scripts/site_scrub.py ... --category "Upholstery" --out-dir "<work folder>"
    ```
-   Output: `F&T Site Scrub <subcat> <MM.DD.YY>.xlsx`. It shows its work:
+   A misspelled name stops the run and lists the valid choices.
+   Output: `F&T Site Scrub <category or subcat> <MM.DD.YY>.xlsx`. It shows its work:
 
    | Tab | What's on it |
    |---|---|
@@ -67,7 +69,7 @@ Bath Textiles · Upholstery: Sofas + Sectionals, Uph Beds, Uph Ottomans and Benc
    | **Steps** (green) | What was done, in order, with the number of SKUs at each step |
    | **Outliers** (green) | SKUs that aren't online, "investigate" first; every column looks up Scrub |
    | **Scrub** (green) | One row per should-be-online SKU: SKU / Name / Variant / Active / Image Quality / Inventory / Reason. Every answer is an XLOOKUP / IF formula into the data tabs |
-   | **MSL** (blue) | The MSL rows for the subcat, all stages, with a Should Be Online? formula |
+   | **MSL** (blue) | The MSL rows for the category/subcat, all stages, with a Should Be Online? formula |
    | **HTML** (blue) | The site pull for the subcat: variant, own photo?, image width/height, quality formula |
    | **Shopify** (blue) | Product status + Jewell available/on hand for the subcat's SKUs |
    | **DS** (blue) | DS report rows for the subcat's SKUs |
@@ -92,3 +94,5 @@ Bath Textiles · Upholstery: Sofas + Sectionals, Uph Beds, Uph Ottomans and Benc
 
 Tested 10/19/2026 on Uph Seating: 978 should be online, 773 live, 205 outliers (173 no inventory,
 20 not in Shopify, 4 under buffer, 8 investigate, all Four Hands with DS stock).
+
+Tested 10/19/2026 on the Upholstery category: 2,806 should be online, 2,443 live, 363 outliers (matches the hand-built 10/19 scrub).

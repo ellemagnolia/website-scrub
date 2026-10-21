@@ -45,6 +45,7 @@ def read_sheet(path, need):
     """Rows as dicts from the first sheet whose header row has every column in `need`."""
     wb = openpyxl.load_workbook(path, read_only=True)
     for ws in wb.worksheets:
+        ws.reset_dimensions()  # Domo exports claim to be 1x1 in read-only mode
         rows = ws.iter_rows(values_only=True)
         head = [str(h).strip() if h is not None else "" for h in next(rows, [])]
         if all(n in head for n in need):

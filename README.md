@@ -50,11 +50,16 @@ Bath Textiles · Upholstery: Sofas + Sectionals, Uph Beds, Uph Ottomans and Benc
 2. **Shopify pull** (Chrome, user already signed in to the Shopify admin; never type a password):
    - Open any `admin.shopify.com/store/magnoliamom` page and run `scripts/shopify_pull.js` in it.
    - Check `window.jw` until `done` is true. If `err` says the Jewell location changed, stop and tell the user.
-   - Copy `window.tsv` out through the clipboard: add a one-time capture-phase `pointerdown`
-     listener on `window` that runs `navigator.clipboard.writeText(tsv)`, then click empty space
-     in the dark top bar (about x=200, y=26).
-   - `Get-Clipboard -Raw | Out-File -Encoding utf8 "<work folder>\shopify_variants.tsv"`, then
-     clear the clipboard and close the tab.
+   - Get `window.tsv` onto disk through OneDrive (the clipboard route failed on 10/20: Chrome's
+     clipboard never reached Windows):
+     1. Add a one-time capture-phase `pointerdown` listener on `window` that runs
+        `window._sp = window.open('https://magnoliahomes-my.sharepoint.com/_layouts/15/blank.htm')`,
+        then click empty space in the dark top bar (about x=200, y=26). The new tab joins the group.
+     2. In the SharePoint tab, add a `message` listener that keeps `e.data` when
+        `e.origin === 'https://admin.shopify.com'`. In the admin tab, `_sp.postMessage(tsv, 'https://magnoliahomes-my.sharepoint.com')`.
+     3. In the SharePoint tab, get a digest from `/personal/ellejansick_magnolia_com/_api/contextinfo`
+        and POST the text to `.../_api/web/GetFolderByServerRelativeUrl('/personal/ellejansick_magnolia_com/Documents/Desktop/<work folder>')/Files/add(url='shopify_variants.tsv',overwrite=true)`.
+     4. Wait for OneDrive to sync the file locally (same byte size), then close both tabs.
 3. **Run the scrub** by sub-category (`--subcat`) or category (`--category`); repeat either for more than one, or mix them:
    ```
    python scripts/site_scrub.py --msl "<MSL>.xlsx" --ds "<DS report>.xlsx" --shopify "<work folder>\shopify_variants.tsv" --subcat "Uph Seating" --out-dir "<work folder>"

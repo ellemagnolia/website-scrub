@@ -9,6 +9,44 @@ a whole MH Category (e.g. Upholstery) or one MH Sub-Category (e.g. Uph Seating),
 
 ## How it works
 
+```mermaid
+flowchart LR
+    subgraph IN["Inputs"]
+        MSL["NetSuite MSL export<br/>(user exports)"]
+        DS["Domo: Recent Dropship<br/>Inventory Reports<br/>(user downloads)"]
+        SH["Shopify admin<br/>status + Jewell qty<br/>(Chrome, read-only)"]
+        SITE["magnolia.com<br/>products.json<br/>(public, script pulls)"]
+    end
+
+    MSL --> SBO["Should be online<br/>F+T, chosen category/subcat,<br/>Continuing / New / Markdown /<br/>Residual / Re-Intro"]
+    SITE --> LIVE["Live on site<br/>every variant: SKU + photo size"]
+
+    SBO --> CMP{"Match by SKU<br/>(never by name)"}
+    LIVE --> CMP
+
+    CMP -- "on the site" --> ACT["Active<br/>+ Image Quality<br/>Good / OK / Low /<br/>No variant photo"]
+    CMP -- "not on the site" --> OUT["Outlier"]
+
+    SH --> WHY
+    DS --> WHY
+    OUT --> WHY{"Reason<br/>(first match wins)"}
+    WHY --> R1["Not in Shopify"]
+    WHY --> R2["Draft / Archived"]
+    WHY --> R3["No inventory"]
+    WHY --> R4["Under stock buffer (1–10)"]
+    WHY --> R5["Has inventory -<br/>investigate"]
+
+    ACT --> WB[("F&T Site Scrub workbook<br/>Run · Steps · Outliers · Scrub<br/>+ MSL · HTML · Shopify · DS tabs")]
+    R1 --> WB
+    R2 --> WB
+    R3 --> WB
+    R4 --> WB
+    R5 --> WB
+```
+
+Inventory for the Reason comes from Domo for dropship SKUs and from Shopify (Jewell Warehouse)
+for everything else.
+
 1. **Should be online** = MSL rows with MH Division = Furniture + Textiles, the chosen
    MH Category or MH Sub-Category, and Stage = Continuing, New, Markdown, Residual or Re-Intro.
 2. **Site pull** ("HTML" tab) = public `magnolia.com/products.json`, every variant with its SKU
